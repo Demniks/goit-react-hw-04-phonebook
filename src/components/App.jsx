@@ -1,64 +1,59 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 import ContactForm from './ContactForm/ContactForm';
 import ContactList from './ContactList/ContactList';
-import Filter from './Filter/Filter'
+import Filter from './Filter/Filter';
 
-class App extends Component {
-  state = {
-    contacts: [
-      { id: nanoid(), name: 'Rosie Simpson', number: '459-12-56' },
-      { id: nanoid(), name: 'Hermione Kline', number: '443-89-12' },
-      { id: nanoid(), name: 'Eden Clements', number: '645-17-79' },
-      { id: nanoid(), name: 'Annie Copeland', number: '227-91-26' },
-    ],
-    filter: '',
-  };
+const App = () => {
+  const [contacts, setContacts] = useState(() => {
+    const contacts = JSON.parse(window.localStorage.getItem('contacts'));
+    return contacts ? contacts : [];
+  });
 
-  componentDidUpdate(prevProps, prevStage) {
-    if (this.state.contacts !== prevStage.contacts) {
-      localStorage.setItem('contacts', JSON.stringify(this.state.contacts));
-    }
-  }
+  const [filter, setFilter] = useState('');
 
-  componentDidMount() {
-    const contacts = localStorage.getItem('contacts');
-    const parsedContacts = JSON.parse(contacts);
-    if (parsedContacts) {
-      this.setState({ contacts: parsedContacts });
-    }
-  }
+  useEffect(() => {
+    window.localStorage.setItem('contacts', JSON.stringify(contacts));
+  }, [contacts]);
 
-  removeContact = id => {
-    this.setState(({ contacts }) => {
-      const newContactArray = contacts.filter(contact => contact.id !== id);
-      return { contacts: newContactArray };
+  const isDublication = ({ name, number }) => {
+    const nameNormalized = name.toLowerCase();
+    const numberNormalized = number.trim();
+    const duble = contacts.find(({ name, number }) => {
+      return (
+        name.toLowerCase() === nameNormalized || numberNormalized === number
+      );
     });
+    return Boolean(duble);
   };
 
-  handleFilter = ({ target }) => {
-    this.setState({ filter: target.value });
-  };
-
-  handleSubmit = ({ name, number }) => {
-    if (this.isDublication({ name })) {
-      alert(`${name}  is already in contacts`);
+  const handleSubmit = ({ name, number }) => {
+    if (isDublication({ name, number })) {
+      alert(`${name} or ${number}  is already in contacts`);
       return false;
     }
-    this.setState(prevState => {
-      const { contacts } = prevState;
+    setContacts(prevContacts => {
       const newContact = {
         id: nanoid(),
         name,
         number,
       };
-      return { contacts: [newContact, ...contacts] };
+      return [newContact, ...prevContacts];
     });
     return true;
   };
 
-  getFindContacts() {
-    const { contacts, filter } = this.state;
+  const removeContact = id => {
+    setContacts(prevContacts =>
+      prevContacts.filter(contact => contact.id !== id)
+    );
+  };
+
+  const handleFilter = ({ target }) => {
+    setFilter(target.value);
+  };
+
+  const getFindContacts = () => {
     if (!filter) {
       return contacts;
     }
@@ -67,31 +62,26 @@ class App extends Component {
       return name.toLowerCase().includes(findNormalized);
     });
     return data;
-  }
+  };
 
-  isDublication({ name }) {
-    const nameNormalized = name.toLowerCase();
-    const { contacts } = this.state;
-    const duble = contacts.find(({ name }) => {
-      return name.toLowerCase() === nameNormalized;
-    });
-    return Boolean(duble);
-  }
+  const filteredContacts = getFindContacts();
+  const isContacts = Boolean(filteredContacts.length);
 
-  render() {
-    const { filter } = this.state;
-    const contacts = this.getFindContacts();
-
-    return (
-      <div>
-        <h1>Phonebook</h1>
-        <ContactForm onSubmit={this.handleSubmit} />
-        <h2>Contacts</h2>
-        <Filter handleChange={this.handleFilter} value={filter} />
-        <ContactList contacts={contacts} removeContact={this.removeContact} />
-      </div>
-    );
-  }
-}
+  return (
+    <div>
+      <h1>Phonebook</h1>
+      <ContactForm onSubmit={handleSubmit} />
+      <h2>Contacts</h2>
+      <Filter handleChange={handleFilter} value={filter} />
+      {isContacts && (
+        <ContactList
+          contacts={filteredContacts}
+          removeContact={removeContact}
+        />
+      )}
+      {!isContacts && <p>No contacts in list</p>}
+    </div>
+  );
+};
 
 export default App;
